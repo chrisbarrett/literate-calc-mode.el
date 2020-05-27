@@ -37,6 +37,24 @@
 (require 'subr-x)
 (require 'thingatpt)
 
+(autoload 'org-in-src-block-p "org")
+
+(defgroup literate-calc-mode nil
+  "Display calc results in buffers via overlays."
+  :group 'editing
+  :prefix "literate-calc-mode-")
+
+(defcustom literate-calc-mode-inhibit-line-functions '(literate-calc-mode--default-inhibit-line-function)
+  "Hook functions called for each line to test whether to inhibit calculation.
+
+If any of these functions returns non-nil, overlays will not be displayed."
+  :group 'literate-calc-mode
+  :type 'hook)
+
+(defun literate-calc-mode--default-inhibit-line-function ()
+  (when (derived-mode-p 'org-mode)
+    (org-in-src-block-p)))
+
 ;; TODO semantic highlighting
 ;; TODO org-babel-execute
 ;; TODO org export
@@ -156,9 +174,10 @@ shadowing."
       (let ((buffer-line-count (count-lines (point-min) (point-max)))
             (line-number 1))
         (while (<= line-number buffer-line-count)
-          (let ((binding (literate-calc--process-line (thing-at-point 'line)
-                                                      literate-calc--scope)))
-            (literate-calc--add-binding binding))
+          (unless (run-hook-with-args-until-success 'literate-calc-mode-inhibit-line-functions)
+            (let ((binding (literate-calc--process-line (thing-at-point 'line)
+                                                        literate-calc--scope)))
+              (literate-calc--add-binding binding)))
           (setq line-number (1+ line-number))
           (forward-line 1))))))
 
